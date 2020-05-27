@@ -13,8 +13,7 @@ plugins {
 }
 
 repositories {
-    // Use jcenter for resolving dependencies.
-    // You can declare any Maven/Ivy/file repository here.
+    maven(url = "https://dl.bintray.com/kyonifer/maven")
     jcenter()
 }
 
@@ -24,6 +23,9 @@ dependencies {
 
     // Use the Kotlin JDK 8 standard library.
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+
+    implementation("com.kyonifer", "koma-core-ejml","0.12")
+    implementation("com.kyonifer", "koma-plotting", "0.12")
 
     // Use the Kotlin test library.
     testImplementation("org.jetbrains.kotlin:kotlin-test")
