@@ -1,8 +1,6 @@
 package parts.wisdom.simplednn
 
 import koma.matrix.Matrix
-import koma.matrix.MatrixTypes
-import koma.zeros
 
 private const val BATCH_SIZE = 50
 private const val NUM_EPOCHS = 20
@@ -41,17 +39,21 @@ data class ExampleSet(val examples: List<Example>) {
 fun pickBatches(examples: ExampleSet, batchSize: Int): List<List<Example>> =
     examples.examples.shuffled().chunked(batchSize)
 
-data class EvaluationMetrics(val accuracy: Float) {
+data class EvaluationMetrics(val accuracy: Float)
 
+fun train(
+    classifier: SimpleClassifier,
+    trainingData: ExampleSet,
+    testData: ExampleSet
+) {
+    for (epoch in 1..NUM_EPOCHS) {
+        for (batch in pickBatches(trainingData, BATCH_SIZE)) {
+            classifier.trainBatch(batch)
+        }
+        val metrics = evaluate(classifier, testData)
+        println("After epoch $epoch, $metrics")
+    }
 }
-
-//fun train(classifier: SimpleClassifier, trainingData: ExampleSet) {
-//    val batches = pickBatches(trainingData, BATCH_SIZE)
-//    for (epoch in 1..NUM_EPOCHS) {
-//        val deltaParams = zeros(classifier.paramNumRows, classifier.paramNumCols, MatrixTypes.FloatType)
-//        println("After epoch $epoch, ${TODO()}")
-//    }
-//}
 
 fun evaluate(classifier: SimpleClassifier, testData: ExampleSet): EvaluationMetrics {
     var numRight = 0

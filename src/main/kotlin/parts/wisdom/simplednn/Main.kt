@@ -7,8 +7,8 @@ fun main(args: Array<String>)
     val testData = ExampleSet(readTestData())
     check(trainingData.dims == testData.dims)
 
-    val dnn = SimpleClassifier(exampleDims, 10)
-    // train(dnn, trainingData)
-    val metrics = evaluate(dnn, testData)
-    println("Final performance: $metrics")
+    val classifier = SimpleClassifier(exampleDims, 10)
+    val metrics = evaluate(classifier, testData)
+    println("Untrained performance: $metrics")
+    train(classifier, trainingData, testData)
 }

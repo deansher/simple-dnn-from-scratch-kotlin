@@ -3,26 +3,26 @@
  */
 package parts.wisdom.simplednn
 
-import koma.extensions.emul
-import koma.extensions.get
+import koma.extensions.*
 import koma.matrix.Matrix
 import koma.rand
+import koma.zeros
+import kotlin.math.pow
+
+const val LEARNING_RATE = 0.01
 
 /**
  * Classifier implemented as a single-layer neural net. The one layer is a fully connected softmax.
  * The loss is cross-entropy.
  */
 class SimpleClassifier(val exampleDims: ExampleDims, val numClasses: Int) {
-    val biases = rand(1, numClasses)
-    val weights = List(numClasses) {
+    var bias = rand(1, numClasses)
+    var weight = MutableList(numClasses) {
         rand(exampleDims.numRows, exampleDims.numCols)
     }
 
     fun inferClass(x: Example): Int {
-        val weightedSums = Matrix(1, numClasses) { _, clazz ->
-            weights[clazz] dot x.matrix
-        }
-        val logits = weightedSums + biases
+        val logits = computeLogits(x)
         var bestClass = 0
         var bestLogit = logits[0, bestClass]
         for (c in 1 until numClasses) {
@@ -32,6 +32,52 @@ class SimpleClassifier(val exampleDims: ExampleDims, val numClasses: Int) {
             }
         }
         return bestClass
+    }
+
+    private fun computeLogits(x: Example): Matrix<Double> {
+        val weightedSums = Matrix(1, numClasses) { _, clazz ->
+            weight[clazz] dot x.matrix
+        }
+        return weightedSums + bias
+    }
+
+    private fun computeProbabilities(x: Example): Matrix<Double> {
+        val es = computeLogits(x).map { Math.E.pow(it) }
+        val sumEs = es.elementSum()
+        return es.map { it / sumEs }
+    }
+
+    fun trainBatch(batch: List<Example>) {
+        val batchDeltaBias = zeros(1, numClasses)
+        val batchDeltaWeight = List(numClasses) {
+            zeros(exampleDims.numRows, exampleDims.numCols)
+        }
+        for (x in batch) {
+            val ps = computeProbabilities(x)
+            for (c in 0 until numClasses) {
+                val p = ps[0, c]
+                val dLossDLogit = if (c == x.label) {
+                    p - 1.0
+                } else {
+                    p
+                }
+                val xDeltaBias = -LEARNING_RATE * dLossDLogit
+                batchDeltaBias[0, c] += xDeltaBias
+
+                val dw = batchDeltaWeight[c]
+                for (row in 0 until exampleDims.numRows) {
+                    for (col in 0 until exampleDims.numCols) {
+                        val dLossDW = dLossDLogit * x.matrix[row, col]
+                        val xDeltaW = -LEARNING_RATE * dLossDW
+                        dw[row, col] += xDeltaW
+                    }
+                }
+            }
+        }
+        bias += batchDeltaBias
+        for (c in 0 until numClasses) {
+            weight[c] += batchDeltaWeight[c]
+        }
     }
 }
 
