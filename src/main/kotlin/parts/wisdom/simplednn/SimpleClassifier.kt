@@ -3,22 +3,29 @@
  */
 package parts.wisdom.simplednn
 
-import koma.extensions.*
+import koma.extensions.emul
+import koma.extensions.get
+import koma.extensions.map
+import koma.extensions.set
 import koma.matrix.Matrix
 import koma.rand
 import koma.zeros
 import kotlin.math.pow
 
-const val LEARNING_RATE = 0.01
+private const val LEARNING_RATE = 3e-8
+private const val MAX_INITIAL_VALUE = 1e-6
 
 /**
  * Classifier implemented as a single-layer neural net. The one layer is a fully connected softmax.
  * The loss is cross-entropy.
  */
-class SimpleClassifier(val exampleDims: ExampleDims, val numClasses: Int) {
-    var bias = rand(1, numClasses)
-    var weight = MutableList(numClasses) {
-        rand(exampleDims.numRows, exampleDims.numCols)
+class SimpleClassifier(
+    private val exampleDims: ExampleDims,
+    private val numClasses: Int
+) {
+    private var bias = rand(1, numClasses) * MAX_INITIAL_VALUE
+    private var weight = MutableList(numClasses) {
+        rand(exampleDims.numRows, exampleDims.numCols) * MAX_INITIAL_VALUE
     }
 
     fun inferClass(x: Example): Int {
@@ -35,14 +42,15 @@ class SimpleClassifier(val exampleDims: ExampleDims, val numClasses: Int) {
     }
 
     private fun computeLogits(x: Example): Matrix<Double> {
-        val weightedSums = Matrix(1, numClasses) { _, clazz ->
-            weight[clazz] dot x.matrix
+        val weightedSums = Matrix(1, numClasses) { _, c ->
+            weight[c] dot x.matrix
         }
         return weightedSums + bias
     }
 
     private fun computeProbabilities(x: Example): Matrix<Double> {
-        val es = computeLogits(x).map { Math.E.pow(it) }
+        val logits = computeLogits(x)
+        val es = logits.map { Math.E.pow(it) }
         val sumEs = es.elementSum()
         return es.map { it / sumEs }
     }
@@ -56,11 +64,12 @@ class SimpleClassifier(val exampleDims: ExampleDims, val numClasses: Int) {
             val ps = computeProbabilities(x)
             for (c in 0 until numClasses) {
                 val p = ps[0, c]
-                val dLossDLogit = if (c == x.label) {
-                    p - 1.0
-                } else {
-                    p
-                }
+                val dLossDLogit =
+                    if (c == x.label) {
+                        p - 1.0
+                    } else {
+                        p
+                    }
                 val xDeltaBias = -LEARNING_RATE * dLossDLogit
                 batchDeltaBias[0, c] += xDeltaBias
 

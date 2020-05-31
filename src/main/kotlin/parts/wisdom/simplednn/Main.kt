@@ -8,7 +8,6 @@ fun main(args: Array<String>)
     check(trainingData.dims == testData.dims)
 
     val classifier = SimpleClassifier(exampleDims, 10)
-    val metrics = evaluate(classifier, testData)
-    println("Untrained performance: $metrics")
+    println("Untrained performance: ${evaluate(classifier, testData)}")
     train(classifier, trainingData, testData)
 }
