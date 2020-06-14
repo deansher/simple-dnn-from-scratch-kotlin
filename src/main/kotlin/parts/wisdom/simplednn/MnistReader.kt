@@ -8,7 +8,7 @@ import java.io.FileInputStream
 
 // Adapted from https://github.com/turkdogan/mnist-data-reader
 
-fun main(args: Array<String>) {
+fun main() {
     val trainingData = readTrainingData()
     printMnistExample(trainingData[trainingData.size - 1])
     val testData = readTestData()
@@ -56,7 +56,7 @@ fun readData(dataFilePath: String, labelFilePath: String): List<Example> {
         val m = zeros(nRows, nCols)
         for (r in 0 until nRows) {
             for (c in 0 until nCols) {
-                m[r, c] = dataInputStream.readUnsignedByte()
+                m[r, c] = dataInputStream.readUnsignedByte().toDouble() / 255.0
             }
         }
         data += Example(label, m)

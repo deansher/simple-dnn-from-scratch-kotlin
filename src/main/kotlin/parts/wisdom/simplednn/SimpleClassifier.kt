@@ -12,8 +12,8 @@ import koma.rand
 import koma.zeros
 import kotlin.math.pow
 
-private const val LEARNING_RATE = 3e-8
-private const val MAX_INITIAL_VALUE = 1e-6
+private const val LEARNING_RATE = 3e-3
+private const val MAX_INITIAL_VALUE = 1.0
 
 /**
  * Classifier implemented as a single-layer neural net. The one layer is a fully connected softmax.
