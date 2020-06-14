@@ -59,7 +59,7 @@ fun readData(dataFilePath: String, labelFilePath: String): List<Example> {
                 m[r, c] = dataInputStream.readUnsignedByte().toDouble() / 255.0
             }
         }
-        data += Example(label, m)
+        data += Example(Coords(0, label), m)
     }
     dataInputStream.close()
     labelInputStream.close()

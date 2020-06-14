@@ -5,15 +5,35 @@ import koma.matrix.Matrix
 private const val BATCH_SIZE = 20
 private const val NUM_EPOCHS = 20
 
-data class Example(val label: Int, val matrix: Matrix<Double>) {
-    val dims = ExampleDims(matrix.numRows(), matrix.numCols())
+data class Coords(val row: Int, val col: Int) {
+    constructor(idx: IntArray) :
+            this(
+                idx.let {
+                    require(it.size == 2) { "Can't compare to an index of length ${it.size}" }
+                    it[0]
+                },
+                idx[1]
+            )
+
+    fun equalsIdx(idx: IntArray): Boolean =
+        idx.size == 2 && idx[0] == row && idx[1] == col
 }
 
-data class ExampleDims(
+/**
+ * A training example. The label is a combination of row and column because we use two dimensions for all outputs.
+ */
+data class Example(
+    val label: Coords,
+    val matrix: Matrix<Double>
+) {
+    val shape = Shape(matrix.numRows(), matrix.numCols())
+}
+
+data class Shape(
     val numRows: Int,
     val numCols: Int
 ) {
-    fun requireSameSize(x: Example) {
+    fun requireSameShape(x: Example) {
         require(x.matrix.numRows() == numRows) {
             "example has ${x.matrix.numRows()}; should have $numRows"
         }
@@ -23,17 +43,17 @@ data class ExampleDims(
     }
 }
 
-fun requireConsistentDims(xs: List<Example>): ExampleDims {
+fun requireAllSameShape(xs: List<Example>): Shape {
     require(xs.isNotEmpty()) { "must have at least one example" }
-    val dims = xs[0].dims
+    val shape = xs[0].shape
     for (x in xs) {
-        dims.requireSameSize(x)
+        shape.requireSameShape(x)
     }
-    return dims
+    return shape
 }
 
 data class ExampleSet(val examples: List<Example>) {
-    val dims = requireConsistentDims(examples)
+    val shape = requireAllSameShape(examples)
 }
 
 fun pickBatches(examples: ExampleSet, batchSize: Int): List<List<Example>> =
@@ -42,7 +62,7 @@ fun pickBatches(examples: ExampleSet, batchSize: Int): List<List<Example>> =
 data class EvaluationMetrics(val accuracy: Float)
 
 fun train(
-    classifier: SimpleClassifier,
+    classifier: FullyConnectedSoftmax,
     trainingData: ExampleSet,
     testData: ExampleSet
 ) {
@@ -55,7 +75,7 @@ fun train(
     }
 }
 
-fun evaluate(classifier: SimpleClassifier, testData: ExampleSet): EvaluationMetrics {
+fun evaluate(classifier: FullyConnectedSoftmax, testData: ExampleSet): EvaluationMetrics {
     var numRight = 0
     var numWrong = 0
     for (x in testData.examples) {
