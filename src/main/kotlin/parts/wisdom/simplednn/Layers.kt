@@ -19,6 +19,11 @@ open class Layer(
     val outputShape: Shape
 )
 
+interface BatchTrainer {
+    fun train(x: Example)
+    fun updateParameters()
+}
+
 /**
  * Fully connected softmax classifier with cross-entropy loss.
  */
@@ -66,17 +71,21 @@ class FullyConnectedSoftmax(
         return es.map { it / sumEs }
     }
 
-    fun trainBatch(batch: List<Example>) {
-        val batchDeltaBias =
+    inner class MyBatchTrainer: BatchTrainer {
+        private val batchDeltaBias =
             zeros(
                 outputShape.numRows,
                 outputShape.numCols
             )
-        val batchDeltaWeight: NDArray<Matrix<Double>> =
+        private val batchDeltaWeight: NDArray<Matrix<Double>> =
             makeArrayOfMatrices(outputShape) { _, _ ->
                 zeros(inputShape.numRows, inputShape.numCols)
             }
-        for (x in batch) {
+
+        private var training = true
+
+        override fun train(x: Example) {
+            check(training)
             val ps = computeProbabilities(x)
             ps.forEachIndexedN { idx, p ->
                 val dLossDLogit =
@@ -98,10 +107,22 @@ class FullyConnectedSoftmax(
                 }
             }
         }
-        bias += batchDeltaBias
-        weight.forEachIndexedN { idx, _ ->
-            weight[idx[0], idx[1]] += batchDeltaWeight[idx[0], idx[1]]
+
+        override fun updateParameters() {
+            bias += batchDeltaBias
+            weight.forEachIndexedN { idx, _ ->
+                weight[idx[0], idx[1]] += batchDeltaWeight[idx[0], idx[1]]
+            }
+            training = false
         }
+    }
+
+    fun trainBatch(batch: List<Example>) {
+        val trainer = MyBatchTrainer()
+        for (x in batch) {
+            trainer.train(x)
+        }
+        trainer.updateParameters()
     }
 }
 
