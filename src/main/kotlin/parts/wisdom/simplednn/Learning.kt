@@ -70,7 +70,7 @@ fun train(
         for (batch in pickBatches(trainingData, BATCH_SIZE)) {
             val trainer = classifier.makeTopLayerBatchTrainer()
             for (x in batch) {
-                trainer.train(x)
+                trainer.train(x.matrix, x.label)
             }
             trainer.updateParameters()
         }

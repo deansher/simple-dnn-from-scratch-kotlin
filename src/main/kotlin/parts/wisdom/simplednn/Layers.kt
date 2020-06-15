@@ -20,10 +20,14 @@ abstract class Layer(
 ) {
     abstract fun makeTopLayerBatchTrainer(): TopLayerBatchTrainer
     abstract fun makeLowerLayerBatchTrainer(): LowerLayerBatchTrainer
+    abstract fun computeOutput(input: Matrix<Double>): Matrix<Double>
 }
 
 interface TopLayerBatchTrainer {
-    fun train(x: Example)
+    fun train(
+        input: Matrix<Double>,
+        label: Coords
+    )
     fun updateParameters()
 }
 
@@ -47,7 +51,7 @@ class FullyConnectedSoftmax(
         }
 
     fun inferClass(x: Example): Coords {
-        val logits = computeLogits(x)
+        val logits = computeLogits(x.matrix)
 
         var bestClass = Coords(0, 0)
         var bestLogit = logits[bestClass.row, bestClass.col]
@@ -61,19 +65,19 @@ class FullyConnectedSoftmax(
         return bestClass
     }
 
-    private fun computeLogits(x: Example): Matrix<Double> {
+    private fun computeLogits(input: Matrix<Double>): Matrix<Double> {
         val weightedSums =
             Matrix(
                 outputShape.numRows,
                 outputShape.numCols
             ) { row, col ->
-                weight[row, col] dot x.matrix
+                weight[row, col] dot input
             }
         return weightedSums + bias
     }
 
-    private fun computeProbabilities(x: Example): Matrix<Double> {
-        val logits = computeLogits(x)
+    override fun computeOutput(input: Matrix<Double>): Matrix<Double> {
+        val logits = computeLogits(input)
         val es = logits.map { Math.E.pow(it) }
         val sumEs = es.elementSum()
         return es.map { it / sumEs }
@@ -92,23 +96,26 @@ class FullyConnectedSoftmax(
 
         private var training = true
 
-        override fun train(x: Example) {
+        override fun train(
+            input: Matrix<Double>,
+            label: Coords
+        ) {
             check(training)
-            val ps = computeProbabilities(x)
-            ps.forEachIndexedN { idx, p ->
+            val ps = computeOutput(input)
+            ps.forEachIndexedN { ip, p ->
                 val dLossDLogit =
-                    if (x.label.equalsIdx(idx)) {
+                    if (label.equalsIdx(ip)) {
                         p - 1.0
                     } else {
                         p
                     }
                 val deltaBias = -LEARNING_RATE * dLossDLogit
-                batchDeltaBias[idx[0], idx[1]] += deltaBias
+                batchDeltaBias[ip[0], ip[1]] += deltaBias
 
-                val dw = batchDeltaWeight[idx[0], idx[1]]
+                val dw = batchDeltaWeight[ip[0], ip[1]]
                 for (row in 0 until inputShape.numRows) {
                     for (col in 0 until inputShape.numCols) {
-                        val dLossDW = dLossDLogit * x.matrix[row, col]
+                        val dLossDW = dLossDLogit * input[row, col]
                         val deltaW = -LEARNING_RATE * dLossDW
                         dw[row, col] += deltaW
                     }
