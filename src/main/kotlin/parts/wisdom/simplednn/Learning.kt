@@ -68,7 +68,11 @@ fun train(
 ) {
     for (epoch in 1..NUM_EPOCHS) {
         for (batch in pickBatches(trainingData, BATCH_SIZE)) {
-            classifier.trainBatch(batch)
+            val trainer = classifier.makeTopLayerBatchTrainer()
+            for (x in batch) {
+                trainer.train(x)
+            }
+            trainer.updateParameters()
         }
         val metrics = evaluate(classifier, testData)
         println("After epoch $epoch, $metrics")

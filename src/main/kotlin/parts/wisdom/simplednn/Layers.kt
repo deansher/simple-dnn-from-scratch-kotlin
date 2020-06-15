@@ -14,13 +14,21 @@ import kotlin.math.pow
 private const val LEARNING_RATE = 3e-3
 private const val MAX_INITIAL_VALUE = 1.0
 
-open class Layer(
+abstract class Layer(
     val inputShape: Shape,
     val outputShape: Shape
-)
+) {
+    abstract fun makeTopLayerBatchTrainer(): TopLayerBatchTrainer
+    abstract fun makeLowerLayerBatchTrainer(): LowerLayerBatchTrainer
+}
 
-interface BatchTrainer {
+interface TopLayerBatchTrainer {
     fun train(x: Example)
+    fun updateParameters()
+}
+
+interface LowerLayerBatchTrainer {
+    fun train(dLossDOutput: Matrix<Double>)
     fun updateParameters()
 }
 
@@ -71,7 +79,7 @@ class FullyConnectedSoftmax(
         return es.map { it / sumEs }
     }
 
-    inner class MyBatchTrainer: BatchTrainer {
+    inner class MyTopLayerBatchTrainer: TopLayerBatchTrainer {
         private val batchDeltaBias =
             zeros(
                 outputShape.numRows,
@@ -94,15 +102,15 @@ class FullyConnectedSoftmax(
                     } else {
                         p
                     }
-                val xDeltaBias = -LEARNING_RATE * dLossDLogit
-                batchDeltaBias[idx[0], idx[1]] += xDeltaBias
+                val deltaBias = -LEARNING_RATE * dLossDLogit
+                batchDeltaBias[idx[0], idx[1]] += deltaBias
 
                 val dw = batchDeltaWeight[idx[0], idx[1]]
                 for (row in 0 until inputShape.numRows) {
                     for (col in 0 until inputShape.numCols) {
                         val dLossDW = dLossDLogit * x.matrix[row, col]
-                        val xDeltaW = -LEARNING_RATE * dLossDW
-                        dw[row, col] += xDeltaW
+                        val deltaW = -LEARNING_RATE * dLossDW
+                        dw[row, col] += deltaW
                     }
                 }
             }
@@ -117,12 +125,11 @@ class FullyConnectedSoftmax(
         }
     }
 
-    fun trainBatch(batch: List<Example>) {
-        val trainer = MyBatchTrainer()
-        for (x in batch) {
-            trainer.train(x)
-        }
-        trainer.updateParameters()
+    override fun makeTopLayerBatchTrainer(): TopLayerBatchTrainer =
+        MyTopLayerBatchTrainer()
+
+    override fun makeLowerLayerBatchTrainer(): LowerLayerBatchTrainer {
+        TODO("Not yet implemented")
     }
 }
 
