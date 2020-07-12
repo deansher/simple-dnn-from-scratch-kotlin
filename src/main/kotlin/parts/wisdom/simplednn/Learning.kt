@@ -68,7 +68,7 @@ fun train(
 ) {
     for (epoch in 1..NUM_EPOCHS) {
         for (batch in pickBatches(trainingData, BATCH_SIZE)) {
-            val trainer = classifier.makeTopLayerBatchTrainer()
+            val trainer = classifier.makeBatchTrainer()
             for (x in batch) {
                 trainer.train(x.matrix, x.label)
             }

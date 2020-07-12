@@ -18,21 +18,15 @@ abstract class Layer(
     val inputShape: Shape,
     val outputShape: Shape
 ) {
-    abstract fun makeTopLayerBatchTrainer(): TopLayerBatchTrainer
-    abstract fun makeLowerLayerBatchTrainer(): LowerLayerBatchTrainer
+    abstract fun makeBatchTrainer(): BatchTrainer
     abstract fun computeOutput(input: Matrix<Double>): Matrix<Double>
 }
 
-interface TopLayerBatchTrainer {
+interface BatchTrainer {
     fun train(
         input: Matrix<Double>,
         label: Coords
     )
-    fun updateParameters()
-}
-
-interface LowerLayerBatchTrainer {
-    fun train(dLossDOutput: Matrix<Double>)
     fun updateParameters()
 }
 
@@ -43,12 +37,18 @@ class FullyConnectedSoftmax(
     inputShape: Shape,
     outputShape: Shape
 ) : Layer(inputShape, outputShape) {
-    private var bias: Matrix<Double> = rand(outputShape) * MAX_INITIAL_VALUE
-
+    /**
+     * For each output, a weight for each input.
+     */
     private var weight: NDArray<Matrix<Double>> =
         makeArrayOfMatrices(outputShape) { _, _ ->
             rand(inputShape.numRows, inputShape.numCols) * MAX_INITIAL_VALUE
         }
+
+    /**
+     * A bias for each output.
+     */
+    private var bias: Matrix<Double> = rand(outputShape) * MAX_INITIAL_VALUE
 
     fun inferClass(x: Example): Coords {
         val logits = computeLogits(x.matrix)
@@ -83,7 +83,7 @@ class FullyConnectedSoftmax(
         return es.map { it / sumEs }
     }
 
-    inner class MyTopLayerBatchTrainer: TopLayerBatchTrainer {
+    inner class MyBatchTrainer: BatchTrainer {
         private val batchDeltaBias =
             zeros(
                 outputShape.numRows,
@@ -132,12 +132,8 @@ class FullyConnectedSoftmax(
         }
     }
 
-    override fun makeTopLayerBatchTrainer(): TopLayerBatchTrainer =
-        MyTopLayerBatchTrainer()
-
-    override fun makeLowerLayerBatchTrainer(): LowerLayerBatchTrainer {
-        TODO("Not yet implemented")
-    }
+    override fun makeBatchTrainer(): BatchTrainer =
+        MyBatchTrainer()
 }
 
 private fun rand(shape: Shape): Matrix<Double> = rand(shape.numRows, shape.numCols)
