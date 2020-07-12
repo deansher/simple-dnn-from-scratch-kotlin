@@ -18,8 +18,15 @@ abstract class Layer(
     val inputShape: Shape,
     val outputShape: Shape
 ) {
+    /**
+     * Compute this `Layer`'s output from its input.
+     */
+    abstract operator fun invoke(input: Matrix<Double>): Matrix<Double>
+
+    /**
+     * Make a stateful trainer that will process one batch of inputs.
+     */
     abstract fun makeBatchTrainer(): BatchTrainer
-    abstract fun computeOutput(input: Matrix<Double>): Matrix<Double>
 }
 
 interface BatchTrainer {
@@ -27,13 +34,19 @@ interface BatchTrainer {
         input: Matrix<Double>,
         label: Coords
     )
+
+    // TODO: Refactor `train` to free up that name and use it for this function instead.
+    fun entrain(
+        input: Matrix<Double>,
+        dLossDOutput: Matrix<Double>
+    )
     fun updateParameters()
 }
 
 /**
- * Fully connected softmax classifier with cross-entropy loss.
+ * A linear fully connected layer (no activation function).
  */
-class FullyConnectedSoftmax(
+class FullyConnected(
     inputShape: Shape,
     outputShape: Shape
 ) : Layer(inputShape, outputShape) {
@@ -50,22 +63,7 @@ class FullyConnectedSoftmax(
      */
     private var bias: Matrix<Double> = rand(outputShape) * MAX_INITIAL_VALUE
 
-    fun inferClass(x: Example): Coords {
-        val logits = computeLogits(x.matrix)
-
-        var bestClass = Coords(0, 0)
-        var bestLogit = logits[bestClass.row, bestClass.col]
-
-        logits.forEachIndexedN { idx, logit ->
-            if (logit > bestLogit) {
-                bestClass = Coords(idx)
-                bestLogit = logit
-            }
-        }
-        return bestClass
-    }
-
-    private fun computeLogits(input: Matrix<Double>): Matrix<Double> {
+    override operator fun invoke(input: Matrix<Double>): Matrix<Double> {
         val weightedSums =
             Matrix(
                 outputShape.numRows,
@@ -74,13 +72,6 @@ class FullyConnectedSoftmax(
                 weight[row, col] dot input
             }
         return weightedSums + bias
-    }
-
-    override fun computeOutput(input: Matrix<Double>): Matrix<Double> {
-        val logits = computeLogits(input)
-        val es = logits.map { Math.E.pow(it) }
-        val sumEs = es.elementSum()
-        return es.map { it / sumEs }
     }
 
     inner class MyBatchTrainer: BatchTrainer {
@@ -100,22 +91,19 @@ class FullyConnectedSoftmax(
             input: Matrix<Double>,
             label: Coords
         ) {
-            check(training)
-            val ps = computeOutput(input)
-            ps.forEachIndexedN { ip, p ->
-                val dLossDLogit =
-                    if (label.equalsIdx(ip)) {
-                        p - 1.0
-                    } else {
-                        p
-                    }
-                val deltaBias = -LEARNING_RATE * dLossDLogit
-                batchDeltaBias[ip[0], ip[1]] += deltaBias
+            TODO("doesn't make sense here")
+        }
 
-                val dw = batchDeltaWeight[ip[0], ip[1]]
+        override fun entrain(input: Matrix<Double>, dLossDOutput: Matrix<Double>) {
+            check(training)
+            dLossDOutput.forEachIndexedN { id, d ->
+                val deltaBias = -LEARNING_RATE * d
+                batchDeltaBias[id[0], id[1]] += deltaBias
+
+                val dw = batchDeltaWeight[id[0], id[1]]
                 for (row in 0 until inputShape.numRows) {
                     for (col in 0 until inputShape.numCols) {
-                        val dLossDW = dLossDLogit * input[row, col]
+                        val dLossDW = d * input[row, col]
                         val deltaW = -LEARNING_RATE * dLossDW
                         dw[row, col] += deltaW
                     }
@@ -125,8 +113,8 @@ class FullyConnectedSoftmax(
 
         override fun updateParameters() {
             bias += batchDeltaBias
-            weight.forEachIndexedN { idx, _ ->
-                weight[idx[0], idx[1]] += batchDeltaWeight[idx[0], idx[1]]
+            weight.forEachIndexedN { iw, _ ->
+                weight[iw[0], iw[1]] += batchDeltaWeight[iw[0], iw[1]]
             }
             training = false
         }
@@ -134,6 +122,71 @@ class FullyConnectedSoftmax(
 
     override fun makeBatchTrainer(): BatchTrainer =
         MyBatchTrainer()
+}
+
+/**
+ * Softmax classifier with cross-entropy loss.
+ */
+class FullyConnectedSoftmax(
+    inputShape: Shape,
+    outputShape: Shape
+) : Layer(inputShape, outputShape) {
+    val fullyConnected = FullyConnected(inputShape, outputShape)
+
+    fun inferClass(x: Example): Coords {
+        val logits = fullyConnected.invoke(x.matrix)
+
+        var bestClass = Coords(0, 0)
+        var bestLogit = logits[bestClass.row, bestClass.col]
+
+        logits.forEachIndexedN { idx, logit ->
+            if (logit > bestLogit) {
+                bestClass = Coords(idx)
+                bestLogit = logit
+            }
+        }
+        return bestClass
+    }
+
+    override operator fun invoke(input: Matrix<Double>): Matrix<Double> {
+        val logits = fullyConnected(input)
+        val es = logits.map { Math.E.pow(it) }
+        val sumEs = es.elementSum()
+        return es.map { it / sumEs }
+    }
+
+    inner class MyBatchTrainer(val fullyConnectedTrainer: BatchTrainer): BatchTrainer {
+        private var training = true
+
+        override fun train(
+            input: Matrix<Double>,
+            label: Coords
+        ) {
+            check(training)
+            val ps = invoke(input)
+            val dLossDLogit = Matrix(ps.numRows(), ps.numCols()) { row, col ->
+                val p = ps[row, col]
+                if (label.row == row && label.col == col) {
+                    p - 1.0
+                } else {
+                    p
+                }
+            }
+            fullyConnectedTrainer.entrain(input, dLossDLogit)
+        }
+
+        override fun entrain(input: Matrix<Double>, dLossDOutput: Matrix<Double>) {
+            TODO("doesn't make sense here")
+        }
+
+        override fun updateParameters() {
+            fullyConnectedTrainer.updateParameters()
+            training = false
+        }
+    }
+
+    override fun makeBatchTrainer(): BatchTrainer =
+        MyBatchTrainer(fullyConnected.makeBatchTrainer())
 }
 
 private fun rand(shape: Shape): Matrix<Double> = rand(shape.numRows, shape.numCols)
