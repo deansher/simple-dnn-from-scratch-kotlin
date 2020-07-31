@@ -14,7 +14,7 @@ import kotlin.math.pow
 private const val LEARNING_RATE = 3e-3
 private const val MAX_INITIAL_VALUE = 1.0
 
-abstract class Layer(
+abstract class HiddenLayer(
     val inputShape: Shape,
     val outputShape: Shape
 ) {
@@ -26,19 +26,37 @@ abstract class Layer(
     /**
      * Make a stateful trainer that will process one batch of inputs.
      */
-    abstract fun makeBatchTrainer(): BatchTrainer
+    abstract fun makeBatchTrainer(): HiddenLayerBatchTrainer
 }
 
-interface BatchTrainer {
+interface HiddenLayerBatchTrainer {
+    // TODO: Refactor `train` to free up that name and use it for this function instead.
+    fun train(
+        input: Matrix<Double>,
+        dLossDOutput: Matrix<Double>
+    )
+    fun updateParameters()
+}
+
+abstract class OutputLayer(
+    val inputShape: Shape,
+    val outputShape: Shape
+) {
+    /**
+     * Compute this `Layer`'s output from its input.
+     */
+    abstract operator fun invoke(input: Matrix<Double>): Matrix<Double>
+
+    /**
+     * Make a stateful trainer that will process one batch of inputs.
+     */
+    abstract fun makeBatchTrainer(): OutputLayerBatchTrainer
+}
+
+interface OutputLayerBatchTrainer {
     fun train(
         input: Matrix<Double>,
         label: Coords
-    )
-
-    // TODO: Refactor `train` to free up that name and use it for this function instead.
-    fun entrain(
-        input: Matrix<Double>,
-        dLossDOutput: Matrix<Double>
     )
     fun updateParameters()
 }
@@ -49,7 +67,7 @@ interface BatchTrainer {
 class FullyConnected(
     inputShape: Shape,
     outputShape: Shape
-) : Layer(inputShape, outputShape) {
+) : HiddenLayer(inputShape, outputShape) {
     /**
      * For each output, a weight for each input.
      */
@@ -74,7 +92,7 @@ class FullyConnected(
         return weightedSums + bias
     }
 
-    inner class MyBatchTrainer: BatchTrainer {
+    inner class MyBatchTrainer: HiddenLayerBatchTrainer {
         private val batchDeltaBias =
             zeros(
                 outputShape.numRows,
@@ -87,14 +105,7 @@ class FullyConnected(
 
         private var training = true
 
-        override fun train(
-            input: Matrix<Double>,
-            label: Coords
-        ) {
-            TODO("doesn't make sense here")
-        }
-
-        override fun entrain(input: Matrix<Double>, dLossDOutput: Matrix<Double>) {
+        override fun train(input: Matrix<Double>, dLossDOutput: Matrix<Double>) {
             check(training)
             dLossDOutput.forEachIndexedN { id, d ->
                 val deltaBias = -LEARNING_RATE * d
@@ -120,7 +131,7 @@ class FullyConnected(
         }
     }
 
-    override fun makeBatchTrainer(): BatchTrainer =
+    override fun makeBatchTrainer(): HiddenLayerBatchTrainer =
         MyBatchTrainer()
 }
 
@@ -130,7 +141,7 @@ class FullyConnected(
 class FullyConnectedSoftmax(
     inputShape: Shape,
     outputShape: Shape
-) : Layer(inputShape, outputShape) {
+) : OutputLayer(inputShape, outputShape) {
     val fullyConnected = FullyConnected(inputShape, outputShape)
 
     fun inferClass(x: Example): Coords {
@@ -155,7 +166,7 @@ class FullyConnectedSoftmax(
         return es.map { it / sumEs }
     }
 
-    inner class MyBatchTrainer(val fullyConnectedTrainer: BatchTrainer): BatchTrainer {
+    inner class MyBatchTrainer(val fullyConnectedTrainer: HiddenLayerBatchTrainer): OutputLayerBatchTrainer {
         private var training = true
 
         override fun train(
@@ -172,11 +183,7 @@ class FullyConnectedSoftmax(
                     p
                 }
             }
-            fullyConnectedTrainer.entrain(input, dLossDLogit)
-        }
-
-        override fun entrain(input: Matrix<Double>, dLossDOutput: Matrix<Double>) {
-            TODO("doesn't make sense here")
+            fullyConnectedTrainer.train(input, dLossDLogit)
         }
 
         override fun updateParameters() {
@@ -185,7 +192,7 @@ class FullyConnectedSoftmax(
         }
     }
 
-    override fun makeBatchTrainer(): BatchTrainer =
+    override fun makeBatchTrainer(): OutputLayerBatchTrainer =
         MyBatchTrainer(fullyConnected.makeBatchTrainer())
 }
 
