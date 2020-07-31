@@ -6,7 +6,8 @@ fun main(args: Array<String>)
     val testData = ExampleSet(readTestData())
     check(trainingData.shape == testData.shape)
 
-    val classifier = FullyConnectedSoftmax(trainingData.shape, Shape(1, 10))
+    val outputShape = Shape(1, 10)
+    val classifier = Softmax(FullyConnected(trainingData.shape, outputShape), Shape(1, 10))
     println("Untrained performance: ${evaluate(classifier, testData)}")
     train(classifier, trainingData, testData)
 }

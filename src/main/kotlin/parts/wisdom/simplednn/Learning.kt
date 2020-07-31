@@ -62,7 +62,7 @@ fun pickBatches(examples: ExampleSet, batchSize: Int): List<List<Example>> =
 data class EvaluationMetrics(val accuracy: Float)
 
 fun train(
-    classifier: FullyConnectedSoftmax,
+    classifier: Softmax,
     trainingData: ExampleSet,
     testData: ExampleSet
 ) {
@@ -79,7 +79,7 @@ fun train(
     }
 }
 
-fun evaluate(classifier: FullyConnectedSoftmax, testData: ExampleSet): EvaluationMetrics {
+fun evaluate(classifier: Softmax, testData: ExampleSet): EvaluationMetrics {
     var numRight = 0
     var numWrong = 0
     for (x in testData.examples) {

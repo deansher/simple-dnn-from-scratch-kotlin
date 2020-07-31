@@ -138,14 +138,13 @@ class FullyConnected(
 /**
  * Softmax classifier with cross-entropy loss.
  */
-class FullyConnectedSoftmax(
-    inputShape: Shape,
+class Softmax(
+    val source: HiddenLayer,
     outputShape: Shape
-) : OutputLayer(inputShape, outputShape) {
-    val fullyConnected = FullyConnected(inputShape, outputShape)
+) : OutputLayer(source.outputShape, outputShape) {
 
     fun inferClass(x: Example): Coords {
-        val logits = fullyConnected.invoke(x.matrix)
+        val logits = source.invoke(x.matrix)
 
         var bestClass = Coords(0, 0)
         var bestLogit = logits[bestClass.row, bestClass.col]
@@ -160,7 +159,7 @@ class FullyConnectedSoftmax(
     }
 
     override operator fun invoke(input: Matrix<Double>): Matrix<Double> {
-        val logits = fullyConnected(input)
+        val logits = source(input)
         val es = logits.map { Math.E.pow(it) }
         val sumEs = es.elementSum()
         return es.map { it / sumEs }
@@ -193,7 +192,7 @@ class FullyConnectedSoftmax(
     }
 
     override fun makeBatchTrainer(): OutputLayerBatchTrainer =
-        MyBatchTrainer(fullyConnected.makeBatchTrainer())
+        MyBatchTrainer(source.makeBatchTrainer())
 }
 
 private fun rand(shape: Shape): Matrix<Double> = rand(shape.numRows, shape.numCols)
