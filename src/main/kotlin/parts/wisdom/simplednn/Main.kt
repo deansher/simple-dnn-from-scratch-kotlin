@@ -7,8 +7,7 @@ fun main() {
 
     val outputShape = Shape(1, 10)
     val classifier = Softmax(
-        FullyConnected(InputLayer(trainingData.shape), outputShape),
-        Shape(1, 10)
+        FullyConnected(InputLayer(trainingData.shape), outputShape)
     )
     println("Untrained performance: ${evaluate(classifier, testData)}")
     train(classifier, trainingData, testData)

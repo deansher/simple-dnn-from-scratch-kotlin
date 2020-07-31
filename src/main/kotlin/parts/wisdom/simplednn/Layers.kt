@@ -21,7 +21,7 @@ abstract class HiddenLayer(
     /**
      * Compute this `Layer`'s output from its input.
      */
-    abstract operator fun invoke(input: Matrix<Double>): Matrix<Double>
+    abstract operator fun invoke(bottomInput: Matrix<Double>): Matrix<Double>
 
     /**
      * Make a stateful trainer that will process one batch of inputs.
@@ -39,10 +39,7 @@ interface HiddenLayerBatchTrainer {
     fun updateParameters()
 }
 
-abstract class OutputLayer(
-    val inputShape: Shape,
-    val outputShape: Shape
-) {
+abstract class OutputLayer {
     /**
      * Compute this `Layer`'s output from its input.
      */
@@ -56,7 +53,7 @@ abstract class OutputLayer(
 
 interface OutputLayerBatchTrainer {
     fun train(
-        input: Matrix<Double>,
+        bottomInput: Matrix<Double>,
         label: Coords
     )
 
@@ -67,7 +64,7 @@ interface OutputLayerBatchTrainer {
  * A linear fully connected layer (no activation function).
  */
 class FullyConnected(
-    val source: HiddenLayer,
+    source: HiddenLayer,
     outputShape: Shape
 ) : HiddenLayer(source.outputShape, outputShape) {
     /**
@@ -136,7 +133,7 @@ class FullyConnected(
 }
 
 class InputLayer(shape: Shape) : HiddenLayer(shape, shape) {
-    override fun invoke(input: Matrix<Double>): Matrix<Double> = input
+    override fun invoke(bottomInput: Matrix<Double>): Matrix<Double> = bottomInput
 
     override fun makeBatchTrainer(): HiddenLayerBatchTrainer {
         return object : HiddenLayerBatchTrainer {
@@ -154,9 +151,8 @@ class InputLayer(shape: Shape) : HiddenLayer(shape, shape) {
  * Softmax classifier with cross-entropy loss.
  */
 class Softmax(
-    val source: HiddenLayer,
-    outputShape: Shape
-) : OutputLayer(source.outputShape, outputShape) {
+    val source: HiddenLayer
+) : OutputLayer() {
 
     fun inferClass(x: Example): Coords {
         val logits = source.invoke(x.matrix)
@@ -186,11 +182,11 @@ class Softmax(
             private var training = true
 
             override fun train(
-                input: Matrix<Double>,
+                bottomInput: Matrix<Double>,
                 label: Coords
             ) {
                 check(training)
-                val ps = invoke(input)
+                val ps = invoke(bottomInput)
                 val dLossDLogit = Matrix(ps.numRows(), ps.numCols()) { row, col ->
                     val p = ps[row, col]
                     if (label.row == row && label.col == col) {
@@ -199,7 +195,7 @@ class Softmax(
                         p
                     }
                 }
-                sourceTrainer.train(input, dLossDLogit)
+                sourceTrainer.train(bottomInput, dLossDLogit)
             }
 
             override fun updateParameters() {
