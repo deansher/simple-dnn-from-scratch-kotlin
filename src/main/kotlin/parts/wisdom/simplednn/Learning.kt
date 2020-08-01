@@ -14,9 +14,6 @@ data class Coords(val row: Int, val col: Int) {
                 },
                 idx[1]
             )
-
-    fun equalsIdx(idx: IntArray): Boolean =
-        idx.size == 2 && idx[0] == row && idx[1] == col
 }
 
 /**
@@ -67,7 +64,7 @@ fun train(
     testData: ExampleSet
 ) {
     for (epoch in 1..NUM_EPOCHS) {
-        for (batch in pickBatches(trainingData, BATCH_SIZE)) {
+        for (batch in pickBatches(trainingData, BATCH_SIZE).take(1) /* FIXME */) {
             val trainer = classifier.makeBatchTrainer()
             for (x in batch) {
                 trainer.train(x.matrix, x.label)

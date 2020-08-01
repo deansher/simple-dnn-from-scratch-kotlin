@@ -174,7 +174,7 @@ class FullyConnected(
         }
 }
 
-class Relu(val source: HiddenLayer, outputShape: Shape) : HiddenLayer(source.outputShape, outputShape) {
+class Relu(val source: HiddenLayer) : HiddenLayer(source.outputShape, source.outputShape) {
     override fun invoke(bottomInput: Matrix<Double>): Matrix<Double> {
         val myInput = source(bottomInput)
         return Matrix(
