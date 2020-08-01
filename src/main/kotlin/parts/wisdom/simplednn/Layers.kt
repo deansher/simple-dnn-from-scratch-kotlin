@@ -22,7 +22,7 @@ abstract class HiddenLayer(
     /**
      * Compute this `Layer`'s output from its input.
      */
-    abstract operator fun invoke(bottomInput: Matrix<Double>): Matrix<Double>
+    abstract operator fun invoke(modelInput: Matrix<Double>): Matrix<Double>
 
     /**
      * Make a stateful trainer that will process one batch of inputs.
@@ -40,7 +40,7 @@ interface HiddenLayerBatchTrainer {
     fun updateParameters()
 }
 
-abstract class OutputLayer {
+abstract class Classifier {
     /**
      * Compute this `Layer`'s output from its input.
      */
@@ -49,12 +49,14 @@ abstract class OutputLayer {
     /**
      * Make a stateful trainer that will process one batch of inputs.
      */
-    abstract fun makeBatchTrainer(): OutputLayerBatchTrainer
+    abstract fun makeBatchTrainer(): ClassifierBatchTrainer
+
+    abstract fun inferClass(x: Example): Coords
 }
 
-interface OutputLayerBatchTrainer {
+interface ClassifierBatchTrainer {
     fun train(
-        bottomInput: Matrix<Double>,
+        modelInput: Matrix<Double>,
         label: Coords
     )
 
@@ -62,7 +64,7 @@ interface OutputLayerBatchTrainer {
 }
 
 class InputLayer(shape: Shape) : HiddenLayer(shape, shape) {
-    override fun invoke(bottomInput: Matrix<Double>): Matrix<Double> = bottomInput
+    override fun invoke(modelInput: Matrix<Double>): Matrix<Double> = modelInput
 
     override fun makeBatchTrainer(): HiddenLayerBatchTrainer {
         return object : HiddenLayerBatchTrainer {
@@ -96,27 +98,28 @@ class FullyConnected(
      */
     private var bias: Matrix<Double> = rand(outputShape) * MAX_INITIAL_VALUE
 
-    override operator fun invoke(bottomInput: Matrix<Double>): Matrix<Double> {
-        val myInput = source(bottomInput)
+    override operator fun invoke(modelInput: Matrix<Double>): Matrix<Double> {
+        val layerInput = source(modelInput)
         val weightedSums =
             Matrix(
                 outputShape.numRows,
                 outputShape.numCols
-            ) { row, col ->
-                weight[row, col] dot myInput
+            ) { outputRow, outputCol ->
+                weight[outputRow, outputCol] dot layerInput
             }
         return weightedSums + bias
     }
 
     override fun makeBatchTrainer(): HiddenLayerBatchTrainer =
         object : HiddenLayerBatchTrainer {
+            private var training = true
             private var sourceTrainer = source.makeBatchTrainer()
 
             /**
              * For each input, a weight for each output.
              */
             private var outputWeight: NDArray<Matrix<Double>> =
-                makeArrayOfMatrices(source.outputShape) { inputRow, inputCol ->
+                makeArrayOfMatrices(inputShape) { inputRow, inputCol ->
                     Matrix(
                         outputShape.numRows,
                         outputShape.numCols
@@ -135,11 +138,10 @@ class FullyConnected(
                     zeros(inputShape.numRows, inputShape.numCols)
                 }
 
-            private var training = true
-
-            override fun train(bottomInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
+            override fun train(modelInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
                 check(training)
-                val myInput = source(bottomInput)
+                val layerInput = source(modelInput)
+
                 dLossDOutput.forEachIndexedN { id, d ->
                     val deltaBias = -LEARNING_RATE * d
                     batchDeltaBias[id[0], id[1]] += deltaBias
@@ -147,7 +149,7 @@ class FullyConnected(
                     val dw = batchDeltaWeight[id[0], id[1]]
                     for (row in 0 until inputShape.numRows) {
                         for (col in 0 until inputShape.numCols) {
-                            val dLossDW = d * myInput[row, col]
+                            val dLossDW = d * layerInput[row, col]
                             val deltaW = -LEARNING_RATE * dLossDW
                             dw[row, col] += deltaW
                         }
@@ -155,12 +157,12 @@ class FullyConnected(
                 }
                 if (source !is InputLayer) {
                     val dLossDInput = Matrix(
-                        source.outputShape.numRows,
-                        source.outputShape.numCols
+                        inputShape.numRows,
+                        inputShape.numCols
                     ) { inputRow, inputCol ->
                         dLossDOutput dot outputWeight[inputRow, inputCol]
                     }
-                    sourceTrainer.train(bottomInput, dLossDInput)
+                    sourceTrainer.train(modelInput, dLossDInput)
                 }
             }
 
@@ -170,13 +172,14 @@ class FullyConnected(
                     weight[iw[0], iw[1]] += batchDeltaWeight[iw[0], iw[1]]
                 }
                 training = false
+                sourceTrainer.updateParameters()
             }
         }
 }
 
 class Relu(val source: HiddenLayer) : HiddenLayer(source.outputShape, source.outputShape) {
-    override fun invoke(bottomInput: Matrix<Double>): Matrix<Double> {
-        val myInput = source(bottomInput)
+    override fun invoke(modelInput: Matrix<Double>): Matrix<Double> {
+        val myInput = source(modelInput)
         return Matrix(
             outputShape.numRows,
             outputShape.numCols
@@ -189,22 +192,23 @@ class Relu(val source: HiddenLayer) : HiddenLayer(source.outputShape, source.out
         object : HiddenLayerBatchTrainer {
             private var sourceTrainer = source.makeBatchTrainer()
 
-            override fun train(bottomInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
-                val myInput = source(bottomInput)
+            override fun train(modelInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
+                val layerInput = source(modelInput)
                 val dLossDInput = Matrix(
                     outputShape.numRows,
                     outputShape.numCols
                 ) { row, col ->
-                    if (myInput[row, col] > 0) {
+                    if (layerInput[row, col] > 0) {
                         dLossDOutput[row, col]
                     } else {
                         0.0
                     }
                 }
-                sourceTrainer.train(bottomInput, dLossDInput)
+                sourceTrainer.train(modelInput, dLossDInput)
             }
 
             override fun updateParameters() {
+                sourceTrainer.updateParameters()
             }
 
         }
@@ -215,9 +219,9 @@ class Relu(val source: HiddenLayer) : HiddenLayer(source.outputShape, source.out
  */
 class Softmax(
     val source: HiddenLayer
-) : OutputLayer() {
+) : Classifier() {
 
-    fun inferClass(x: Example): Coords {
+    override fun inferClass(x: Example): Coords {
         val logits = source.invoke(x.matrix)
 
         var bestClass = Coords(0, 0)
@@ -239,17 +243,17 @@ class Softmax(
         return es.map { it / sumEs }
     }
 
-    override fun makeBatchTrainer(): OutputLayerBatchTrainer =
-        object : OutputLayerBatchTrainer {
-            private var sourceTrainer = source.makeBatchTrainer()
+    override fun makeBatchTrainer(): ClassifierBatchTrainer =
+        object : ClassifierBatchTrainer {
+            private val sourceTrainer = source.makeBatchTrainer()
             private var training = true
 
             override fun train(
-                bottomInput: Matrix<Double>,
+                modelInput: Matrix<Double>,
                 label: Coords
             ) {
                 check(training)
-                val ps = invoke(bottomInput)
+                val ps = this@Softmax(modelInput)
                 val dLossDLogit = Matrix(ps.numRows(), ps.numCols()) { row, col ->
                     val p = ps[row, col]
                     if (label.row == row && label.col == col) {
@@ -258,7 +262,7 @@ class Softmax(
                         p
                     }
                 }
-                sourceTrainer.train(bottomInput, dLossDLogit)
+                sourceTrainer.train(modelInput, dLossDLogit)
             }
 
             override fun updateParameters() {
