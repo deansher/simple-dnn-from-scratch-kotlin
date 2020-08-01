@@ -12,8 +12,8 @@ import koma.zeros
 import kotlin.math.max
 import kotlin.math.pow
 
-private const val LEARNING_RATE = 3e-3
-private const val MAX_INITIAL_VALUE = 1.0
+private const val LEARNING_RATE = 1e-2
+private const val MAX_INITIAL_VALUE = 1e-3
 
 abstract class HiddenLayer(
     val inputShape: Shape,
@@ -105,7 +105,11 @@ class FullyConnected(
                 outputShape.numRows,
                 outputShape.numCols
             ) { outputRow, outputCol ->
-                weight[outputRow, outputCol] dot layerInput
+                (weight[outputRow, outputCol] dot layerInput).apply {
+                    check(isFinite()) {
+                        "dot product is $this"
+                    }
+                }
             }
         return weightedSums + bias
     }
@@ -144,14 +148,30 @@ class FullyConnected(
 
                 dLossDOutput.forEachIndexedN { id, d ->
                     val deltaBias = -LEARNING_RATE * d
-                    batchDeltaBias[id[0], id[1]] += deltaBias
+                    check(deltaBias.isFinite()) {
+                        "example delta bias is $deltaBias"
+                    }
+                    batchDeltaBias[id[0], id[1]] =
+                        (batchDeltaBias[id[0], id[1]] + deltaBias).apply {
+                            check(isFinite()) {
+                                "batch delta bias is $this"
+                            }
+                        }
 
                     val dw = batchDeltaWeight[id[0], id[1]]
                     for (row in 0 until inputShape.numRows) {
                         for (col in 0 until inputShape.numCols) {
                             val dLossDW = d * layerInput[row, col]
                             val deltaW = -LEARNING_RATE * dLossDW
-                            dw[row, col] += deltaW
+                            check(deltaW.isFinite()) {
+                                "example delta weight [$row, $col] is $deltaW"
+                            }
+                            dw[row, col] =
+                                (dw[row, col] + deltaW).apply {
+                                    check(isFinite()) {
+                                        "batch delta weight [$row, $col] is $this"
+                                    }
+                                }
                         }
                     }
                 }
@@ -167,11 +187,13 @@ class FullyConnected(
             }
 
             override fun updateParameters() {
+                training = false
+
                 bias += batchDeltaBias
                 weight.forEachIndexedN { iw, _ ->
                     weight[iw[0], iw[1]] += batchDeltaWeight[iw[0], iw[1]]
                 }
-                training = false
+
                 sourceTrainer.updateParameters()
             }
         }
@@ -179,12 +201,16 @@ class FullyConnected(
 
 class Relu(val source: HiddenLayer) : HiddenLayer(source.outputShape, source.outputShape) {
     override fun invoke(modelInput: Matrix<Double>): Matrix<Double> {
-        val myInput = source(modelInput)
+        val layerInput = source(modelInput)
         return Matrix(
             outputShape.numRows,
             outputShape.numCols
         ) { row, col ->
-            max(0.0, myInput[row, col])
+            val x = layerInput[row, col]
+            check(x.isFinite()) {
+                "layerInput[$row, $col] is $x"
+            }
+            max(0.0, x)
         }
     }
 
@@ -238,9 +264,27 @@ class Softmax(
 
     override operator fun invoke(input: Matrix<Double>): Matrix<Double> {
         val logits = source(input)
-        val es = logits.map { Math.E.pow(it) }
+        val es = logits.map {
+            Math.E.pow(it).apply {
+                check(isFinite()) {
+                    "logit of $it produced e^logit of $this"
+                }
+            }
+        }
         val sumEs = es.elementSum()
-        return es.map { it / sumEs }
+        check(sumEs > 0.0) {
+            "sum of e^logit under-flowed to 0.0"
+        }
+        check(sumEs.isFinite()) {
+            "sum of e^logit is $sumEs"
+        }
+        return es.map {
+            (it / sumEs).apply {
+                check(isFinite()) {
+                    "$it/$sumEs produces $this as probability"
+                }
+            }
+        }
     }
 
     override fun makeBatchTrainer(): ClassifierBatchTrainer =
@@ -266,8 +310,8 @@ class Softmax(
             }
 
             override fun updateParameters() {
-                sourceTrainer.updateParameters()
                 training = false
+                sourceTrainer.updateParameters()
             }
         }
 }

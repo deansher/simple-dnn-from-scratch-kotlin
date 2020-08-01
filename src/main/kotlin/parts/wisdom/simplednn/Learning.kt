@@ -64,7 +64,7 @@ fun train(
     testData: ExampleSet
 ) {
     for (epoch in 1..NUM_EPOCHS) {
-        for (batch in pickBatches(trainingData, BATCH_SIZE).take(1) /* FIXME */) {
+        for (batch in pickBatches(trainingData, BATCH_SIZE) /* debug with .take(1) */) {
             val trainer = classifier.makeBatchTrainer()
             for (x in batch) {
                 trainer.train(x.matrix, x.label)
