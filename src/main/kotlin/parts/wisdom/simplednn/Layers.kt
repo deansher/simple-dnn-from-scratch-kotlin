@@ -9,6 +9,7 @@ import koma.matrix.Matrix
 import koma.ndarray.NDArray
 import koma.rand
 import koma.zeros
+import kotlin.math.max
 import kotlin.math.pow
 
 private const val LEARNING_RATE = 3e-3
@@ -60,11 +61,26 @@ interface OutputLayerBatchTrainer {
     fun updateParameters()
 }
 
+class InputLayer(shape: Shape) : HiddenLayer(shape, shape) {
+    override fun invoke(bottomInput: Matrix<Double>): Matrix<Double> = bottomInput
+
+    override fun makeBatchTrainer(): HiddenLayerBatchTrainer {
+        return object : HiddenLayerBatchTrainer {
+            override fun train(bottomInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
+            }
+
+            override fun updateParameters() {
+            }
+        }
+    }
+
+}
+
 /**
  * A linear fully connected layer (no activation function).
  */
 class FullyConnected(
-    source: HiddenLayer,
+    val source: HiddenLayer,
     outputShape: Shape
 ) : HiddenLayer(source.outputShape, outputShape) {
     /**
@@ -81,18 +97,34 @@ class FullyConnected(
     private var bias: Matrix<Double> = rand(outputShape) * MAX_INITIAL_VALUE
 
     override operator fun invoke(bottomInput: Matrix<Double>): Matrix<Double> {
+        val myInput = source(bottomInput)
         val weightedSums =
             Matrix(
                 outputShape.numRows,
                 outputShape.numCols
             ) { row, col ->
-                weight[row, col] dot bottomInput
+                weight[row, col] dot myInput
             }
         return weightedSums + bias
     }
 
     override fun makeBatchTrainer(): HiddenLayerBatchTrainer =
         object : HiddenLayerBatchTrainer {
+            private var sourceTrainer = source.makeBatchTrainer()
+
+            /**
+             * For each input, a weight for each output.
+             */
+            private var outputWeight: NDArray<Matrix<Double>> =
+                makeArrayOfMatrices(source.outputShape) { inputRow, inputCol ->
+                    Matrix(
+                        outputShape.numRows,
+                        outputShape.numCols
+                    ) { outputRow, outputCol ->
+                        weight[outputRow, outputCol][inputRow, inputCol]
+                    }
+                }
+
             private val batchDeltaBias =
                 zeros(
                     outputShape.numRows,
@@ -107,6 +139,7 @@ class FullyConnected(
 
             override fun train(bottomInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
                 check(training)
+                val myInput = source(bottomInput)
                 dLossDOutput.forEachIndexedN { id, d ->
                     val deltaBias = -LEARNING_RATE * d
                     batchDeltaBias[id[0], id[1]] += deltaBias
@@ -114,11 +147,20 @@ class FullyConnected(
                     val dw = batchDeltaWeight[id[0], id[1]]
                     for (row in 0 until inputShape.numRows) {
                         for (col in 0 until inputShape.numCols) {
-                            val dLossDW = d * bottomInput[row, col]
+                            val dLossDW = d * myInput[row, col]
                             val deltaW = -LEARNING_RATE * dLossDW
                             dw[row, col] += deltaW
                         }
                     }
+                }
+                if (source !is InputLayer) {
+                    val dLossDInput = Matrix(
+                        source.outputShape.numRows,
+                        source.outputShape.numCols
+                    ) { inputRow, inputCol ->
+                        dLossDOutput dot outputWeight[inputRow, inputCol]
+                    }
+                    sourceTrainer.train(bottomInput, dLossDInput)
                 }
             }
 
@@ -132,19 +174,40 @@ class FullyConnected(
         }
 }
 
-class InputLayer(shape: Shape) : HiddenLayer(shape, shape) {
-    override fun invoke(bottomInput: Matrix<Double>): Matrix<Double> = bottomInput
+class Relu(val source: HiddenLayer, outputShape: Shape) : HiddenLayer(source.outputShape, outputShape) {
+    override fun invoke(bottomInput: Matrix<Double>): Matrix<Double> {
+        val myInput = source(bottomInput)
+        return Matrix(
+            outputShape.numRows,
+            outputShape.numCols
+        ) { row, col ->
+            max(0.0, myInput[row, col])
+        }
+    }
 
-    override fun makeBatchTrainer(): HiddenLayerBatchTrainer {
-        return object : HiddenLayerBatchTrainer {
+    override fun makeBatchTrainer(): HiddenLayerBatchTrainer =
+        object : HiddenLayerBatchTrainer {
+            private var sourceTrainer = source.makeBatchTrainer()
+
             override fun train(bottomInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
+                val myInput = source(bottomInput)
+                val dLossDInput = Matrix(
+                    outputShape.numRows,
+                    outputShape.numCols
+                ) { row, col ->
+                    if (myInput[row, col] > 0) {
+                        dLossDOutput[row, col]
+                    } else {
+                        0.0
+                    }
+                }
+                sourceTrainer.train(bottomInput, dLossDInput)
             }
 
             override fun updateParameters() {
             }
-        }
-    }
 
+        }
 }
 
 /**
@@ -177,7 +240,7 @@ class Softmax(
     }
 
     override fun makeBatchTrainer(): OutputLayerBatchTrainer =
-        object: OutputLayerBatchTrainer {
+        object : OutputLayerBatchTrainer {
             private var sourceTrainer = source.makeBatchTrainer()
             private var training = true
 
