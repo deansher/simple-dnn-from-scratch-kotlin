@@ -11,7 +11,6 @@ fun main() {
              Relu(
                  FullyConnected(InputLayer(trainingData.shape), trainingData.shape)
              ),
-//             InputLayer(trainingData.shape),
              outputShape
          )
     )

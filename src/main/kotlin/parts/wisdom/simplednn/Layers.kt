@@ -12,8 +12,8 @@ import koma.zeros
 import kotlin.math.max
 import kotlin.math.pow
 
-private const val LEARNING_RATE = 1e-2
-private const val MAX_INITIAL_VALUE = 1e-3
+private const val LEARNING_RATE = 5e-3
+private const val MAX_INITIAL_VALUE = 1e-2
 
 abstract class HiddenLayer(
     val inputShape: Shape,
@@ -33,7 +33,7 @@ abstract class HiddenLayer(
 interface HiddenLayerBatchTrainer {
     // TODO: Refactor `train` to free up that name and use it for this function instead.
     fun train(
-        bottomInput: Matrix<Double>,
+        modelInput: Matrix<Double>,
         dLossDOutput: Matrix<Double>
     )
 
@@ -68,7 +68,7 @@ class InputLayer(shape: Shape) : HiddenLayer(shape, shape) {
 
     override fun makeBatchTrainer(): HiddenLayerBatchTrainer {
         return object : HiddenLayerBatchTrainer {
-            override fun train(bottomInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
+            override fun train(modelInput: Matrix<Double>, dLossDOutput: Matrix<Double>) {
             }
 
             override fun updateParameters() {

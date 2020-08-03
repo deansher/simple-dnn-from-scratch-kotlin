@@ -1,0 +1,38 @@
+    val classifier = Softmax(
+         FullyConnected(
+             Relu(
+                 FullyConnected(InputLayer(trainingData.shape), trainingData.shape)
+             ),
+             outputShape
+         )
+    )
+
+With a learning rate of 5e-2, it floundered.
+
+private const val LEARNING_RATE = 2e-2
+private const val MAX_INITIAL_VALUE = 1e-3
+private const val BATCH_SIZE = 20
+
+Untrained performance: EvaluationMetrics(accuracy=0.0988)
+After epoch 1, EvaluationMetrics(accuracy=0.9626)
+After epoch 2, EvaluationMetrics(accuracy=0.9694)
+After epoch 3, EvaluationMetrics(accuracy=0.9733)
+After epoch 4, EvaluationMetrics(accuracy=0.9771)
+After epoch 5, EvaluationMetrics(accuracy=0.973)
+After epoch 6, EvaluationMetrics(accuracy=0.9792)
+After epoch 7, EvaluationMetrics(accuracy=0.9769)
+After epoch 8, EvaluationMetrics(accuracy=0.9787)
+After epoch 9, EvaluationMetrics(accuracy=0.9824)
+After epoch 10, EvaluationMetrics(accuracy=0.9833)
+After epoch 11, EvaluationMetrics(accuracy=0.9823)
+After epoch 12, EvaluationMetrics(accuracy=0.983)
+After epoch 13, EvaluationMetrics(accuracy=0.9849)
+After epoch 14, EvaluationMetrics(accuracy=0.985)
+After epoch 15, EvaluationMetrics(accuracy=0.985)
+After epoch 16, EvaluationMetrics(accuracy=0.9852)
+After epoch 17, EvaluationMetrics(accuracy=0.9852)
+After epoch 18, EvaluationMetrics(accuracy=0.9851)
+After epoch 19, EvaluationMetrics(accuracy=0.985)
+After epoch 20, EvaluationMetrics(accuracy=0.9849)
+
+Process finished with exit code 0

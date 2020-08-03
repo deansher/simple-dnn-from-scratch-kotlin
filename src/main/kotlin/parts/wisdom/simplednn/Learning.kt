@@ -2,14 +2,14 @@ package parts.wisdom.simplednn
 
 import koma.matrix.Matrix
 
-private const val BATCH_SIZE = 20
-private const val NUM_EPOCHS = 20
+private const val BATCH_SIZE = 50
+private const val NUM_EPOCHS = 25
 
 data class Coords(val row: Int, val col: Int) {
     constructor(idx: IntArray) :
             this(
                 idx.let {
-                    require(it.size == 2) { "Can't compare to an index of length ${it.size}" }
+                    require(it.size == 2) { "Can't construct Coords from an index of length ${it.size}" }
                     it[0]
                 },
                 idx[1]
