@@ -9,7 +9,12 @@ fun main() {
     val classifier = Softmax(
          FullyConnected(
              Relu(
-                 FullyConnected(InputLayer(trainingData.shape), trainingData.shape)
+                 FullyConnected(
+                     Relu(
+                         FullyConnected(InputLayer(trainingData.shape), trainingData.shape)
+                     ),
+                     outputShape
+                 )
              ),
              outputShape
          )

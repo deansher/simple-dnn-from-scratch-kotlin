@@ -1,0 +1,85 @@
+    val classifier = Softmax(
+         FullyConnected(
+             Relu(
+                 FullyConnected(
+                     Relu(
+                         FullyConnected(InputLayer(trainingData.shape), trainingData.shape)
+                     ),
+                     outputShape
+                 )
+             ),
+             outputShape
+         )
+    )
+
+private const val LEARNING_RATE = 5e-3
+private const val MAX_INITIAL_VALUE = 1e-2
+private const val BATCH_SIZE = 50
+
+Untrained performance: EvaluationMetrics(accuracy=0.0969)
+After epoch 1, EvaluationMetrics(accuracy=0.1135)
+After epoch 2, EvaluationMetrics(accuracy=0.1135)
+After epoch 3, EvaluationMetrics(accuracy=0.1135)
+
+private const val LEARNING_RATE = 1e-3
+private const val MAX_INITIAL_VALUE = 5e-3
+private const val BATCH_SIZE = 50
+
+Untrained performance: EvaluationMetrics(accuracy=0.0953)
+After epoch 1, EvaluationMetrics(accuracy=0.296)
+After epoch 2, EvaluationMetrics(accuracy=0.8294)
+After epoch 3, EvaluationMetrics(accuracy=0.9101)
+After epoch 4, EvaluationMetrics(accuracy=0.9351)
+After epoch 5, EvaluationMetrics(accuracy=0.9496)
+After epoch 6, EvaluationMetrics(accuracy=0.9583)
+After epoch 7, EvaluationMetrics(accuracy=0.9602)
+After epoch 8, EvaluationMetrics(accuracy=0.9683)
+After epoch 9, EvaluationMetrics(accuracy=0.9707)
+After epoch 10, EvaluationMetrics(accuracy=0.9705)
+After epoch 11, EvaluationMetrics(accuracy=0.9723)
+After epoch 12, EvaluationMetrics(accuracy=0.9719)
+After epoch 13, EvaluationMetrics(accuracy=0.9751)
+After epoch 14, EvaluationMetrics(accuracy=0.9771)
+After epoch 15, EvaluationMetrics(accuracy=0.9761)
+After epoch 16, EvaluationMetrics(accuracy=0.9792)
+After epoch 17, EvaluationMetrics(accuracy=0.9764)
+After epoch 18, EvaluationMetrics(accuracy=0.9767)
+After epoch 19, EvaluationMetrics(accuracy=0.9779)
+After epoch 20, EvaluationMetrics(accuracy=0.9775)
+After epoch 21, EvaluationMetrics(accuracy=0.9784)
+After epoch 22, EvaluationMetrics(accuracy=0.9782)
+After epoch 23, EvaluationMetrics(accuracy=0.9785)
+After epoch 24, EvaluationMetrics(accuracy=0.979)
+After epoch 25, EvaluationMetrics(accuracy=0.9799)
+
+private const val LEARNING_RATE = 1e-3
+private const val MAX_INITIAL_VALUE = 5e-3
+private const val BATCH_SIZE = 20
+
+Untrained performance: EvaluationMetrics(accuracy=0.098)
+After epoch 1, EvaluationMetrics(accuracy=0.3098)
+After epoch 2, EvaluationMetrics(accuracy=0.8243)
+After epoch 3, EvaluationMetrics(accuracy=0.9157)
+After epoch 4, EvaluationMetrics(accuracy=0.9356)
+After epoch 5, EvaluationMetrics(accuracy=0.952)
+After epoch 6, EvaluationMetrics(accuracy=0.9589)
+After epoch 7, EvaluationMetrics(accuracy=0.9591)
+After epoch 8, EvaluationMetrics(accuracy=0.9669)
+After epoch 9, EvaluationMetrics(accuracy=0.9702)
+After epoch 10, EvaluationMetrics(accuracy=0.9713)
+After epoch 11, EvaluationMetrics(accuracy=0.9728)
+After epoch 12, EvaluationMetrics(accuracy=0.974)
+After epoch 13, EvaluationMetrics(accuracy=0.9759)
+After epoch 14, EvaluationMetrics(accuracy=0.9772)
+After epoch 15, EvaluationMetrics(accuracy=0.9757)
+After epoch 16, EvaluationMetrics(accuracy=0.978)
+After epoch 17, EvaluationMetrics(accuracy=0.9783)
+After epoch 18, EvaluationMetrics(accuracy=0.9773)
+After epoch 19, EvaluationMetrics(accuracy=0.9775)
+After epoch 20, EvaluationMetrics(accuracy=0.9774)
+After epoch 21, EvaluationMetrics(accuracy=0.9792)
+After epoch 22, EvaluationMetrics(accuracy=0.9795)
+After epoch 23, EvaluationMetrics(accuracy=0.9797)
+After epoch 24, EvaluationMetrics(accuracy=0.9783)
+After epoch 25, EvaluationMetrics(accuracy=0.9784)
+

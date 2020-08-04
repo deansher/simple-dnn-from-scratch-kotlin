@@ -12,8 +12,8 @@ import koma.zeros
 import kotlin.math.max
 import kotlin.math.pow
 
-private const val LEARNING_RATE = 5e-3
-private const val MAX_INITIAL_VALUE = 1e-2
+private const val LEARNING_RATE = 1e-3
+private const val MAX_INITIAL_VALUE = 5e-3
 
 abstract class HiddenLayer(
     val inputShape: Shape,

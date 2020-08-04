@@ -2,7 +2,7 @@ package parts.wisdom.simplednn
 
 import koma.matrix.Matrix
 
-private const val BATCH_SIZE = 50
+private const val BATCH_SIZE = 20
 private const val NUM_EPOCHS = 25
 
 data class Coords(val row: Int, val col: Int) {
